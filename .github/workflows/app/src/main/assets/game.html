@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Bunny Carrot</title>
+<style>
+:root { --lcd-bg:#9ea78d; --lcd-on:#1a1c18; --lcd-ghost:rgba(26,28,24,0.08); }
+*{ box-sizing:border-box; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+html,body{ margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#1a1a1a;
+  display:flex; justify-content:center; align-items:center; font-family:Arial,sans-serif; }
+#console{
+  width:min(96vw,560px);
+  background:linear-gradient(135deg,#d1d1d1 0%,#f0f0f0 25%,#bcbcbc 50%,#e8e8e8 75%,#afafaf 100%);
+  border-radius:16px; border:4px solid #555; display:flex; flex-direction:column;
+  align-items:center; padding-bottom:26px;
+  box-shadow:0 20px 50px rgba(0,0,0,0.85),inset 0 0 10px rgba(255,255,255,0.5); }
+#brand{ margin-top:14px; font-weight:bold; font-style:italic; color:#333;
+  letter-spacing:2px; font-size:12px; text-transform:uppercase; }
+#screen-wrap{
+  position:relative; margin-top:12px; border:10px solid #222;
+  background:var(--lcd-bg); box-shadow:inset 0 0 18px rgba(0,0,0,0.4);
+  width:min(90vw,420px); }
+#screen{ width:100%; aspect-ratio:2/1; position:relative; overflow:hidden; }
+#overlay{
+  position:absolute; inset:0; background:rgba(0,0,0,0.86); color:#fff;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  cursor:pointer; z-index:100; gap:7px; }
+.ov-title{ font-size:clamp(16px,5vw,26px); font-weight:bold; letter-spacing:2px; }
+.ov-sub  { font-size:clamp(10px,2.5vw,14px); opacity:0.6; }
+.seg{ position:absolute; background:var(--lcd-ghost); }
+.seg.on{ background:var(--lcd-on); }
+.bunny{ width:13%; aspect-ratio:5/6; bottom:5%;
+  clip-path:polygon(20% 0%,40% 0%,40% 30%,60% 30%,60% 0%,80% 0%,80% 40%,100% 40%,100% 100%,0% 100%,0% 40%,20% 40%); }
+.carrot{ width:7%; aspect-ratio:24/38;
+  clip-path:polygon(50% 100%,100% 30%,100% 20%,70% 20%,70% 0%,30% 0%,30% 20%,0% 20%,0% 30%); }
+.bunny.p0{left:7%}  .bunny.p1{left:43%} .bunny.p2{left:79%}
+.carrot.p0{left:10%}.carrot.p1{left:46%}.carrot.p2{left:82%}
+.r0{top:5%} .r1{top:36%} .r2{top:66%}
+#score{ position:absolute; top:5px; right:8px; color:var(--lcd-on);
+  font-weight:bold; font-size:clamp(12px,3vw,20px); }
+#lives{ position:absolute; top:5px; left:8px; color:var(--lcd-on);
+  font-weight:bold; font-size:clamp(9px,2vw,14px); }
+.controls{ display:flex; width:76%; justify-content:space-around; margin-top:20px; }
+.btn-well{ background:#111; padding:5px; border-radius:50%; box-shadow:inset 0 2px 5px #000; }
+.btn{
+  width:clamp(52px,13vw,70px); height:clamp(52px,13vw,70px);
+  background:#8b0000; border:none; border-radius:50%; cursor:pointer;
+  box-shadow:0 4px 0 #4a0000; color:rgba(255,255,255,0.2);
+  font-size:clamp(18px,5vw,28px); outline:none; display:flex;
+  align-items:center; justify-content:center; user-select:none; }
+.btn:active{ transform:translateY(3px); box-shadow:0 1px 0 #4a0000; filter:brightness(0.7); }
+</style>
+</head>
+<body>
+<div id="console">
+  <div id="brand">G&amp;W Heritage · Bunny Carrot</div>
+  <div id="screen-wrap">
+    <div id="overlay" onclick="startGame()">
+      <div class="ov-title">BUNNY CARROT</div>
+      <div class="ov-sub">Tap to start</div>
+    </div>
+    <div id="screen">
+      <div id="lives">♥♥♥</div>
+      <div id="score">0000</div>
+      <div id="b0" class="seg bunny p0"></div>
+      <div id="b1" class="seg bunny p1 on"></div>
+      <div id="b2" class="seg bunny p2"></div>
+      <div id="c00" class="seg carrot p0 r0"></div><div id="c01" class="seg carrot p0 r1"></div><div id="c02" class="seg carrot p0 r2"></div>
+      <div id="c10" class="seg carrot p1 r0"></div><div id="c11" class="seg carrot p1 r1"></div><div id="c12" class="seg carrot p1 r2"></div>
+      <div id="c20" class="seg carrot p2 r0"></div><div id="c21" class="seg carrot p2 r1"></div><div id="c22" class="seg carrot p2 r2"></div>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="btn-well"><button class="btn" ontouchstart="mv(-1);return false;" onmousedown="mv(-1)">◀</button></div>
+    <div class="btn-well"><button class="btn" ontouchstart="mv(1);return false;"  onmousedown="mv(1)">▶</button></div>
+  </div>
+</div>
+<script>
+var ac,pos=1,score=0,items=[],speed=600,running=false,lives=3,tid=null;
+function beep(f,d){
+  if(!ac)return;
+  try{var o=ac.createOscillator(),g=ac.createGain();
+  o.type='square';o.frequency.value=f;
+  g.gain.setValueAtTime(0.04,ac.currentTime);
+  o.connect(g);g.connect(ac.destination);
+  o.start();o.stop(ac.currentTime+d);}catch(e){}
+}
+function updLives(){document.getElementById('lives').textContent='♥'.repeat(lives)+'♡'.repeat(3-lives);}
+function mv(d){
+  if(!running)return;
+  beep(850,0.05);
+  document.getElementById('b'+pos).classList.remove('on');
+  pos=Math.max(0,Math.min(2,pos+d));
+  document.getElementById('b'+pos).classList.add('on');
+}
+document.addEventListener('keydown',function(e){
+  if(e.key==='ArrowLeft')mv(-1);
+  if(e.key==='ArrowRight')mv(1);
+});
+function showOv(msg,sub){
+  var ov=document.getElementById('overlay');
+  ov.innerHTML='<div class="ov-title">'+msg+'</div><div class="ov-sub">'+sub+'</div>';
+  ov.style.display='flex';
+  ov.onclick=function(){ov.style.display='none';reset();};
+}
+function reset(){
+  if(tid)clearTimeout(tid);
+  pos=1;score=0;lives=3;speed=600;items=[];
+  document.getElementById('score').textContent='0000';
+  updLives();
+  document.querySelectorAll('.seg').forEach(function(s){s.classList.remove('on');});
+  document.getElementById('b1').classList.add('on');
+  running=true;loop();
+}
+function startGame(){
+  try{ac=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}
+  document.getElementById('overlay').style.display='none';
+  running=true;lives=3;updLives();loop();
+}
+function loop(){
+  if(!running)return;
+  document.querySelectorAll('.carrot').forEach(function(c){c.classList.remove('on');});
+  for(var i=items.length-1;i>=0;i--){
+    var it=items[i];
+    if(it.row>2){
+      if(it.lane===pos){
+        score+=10;
+        document.getElementById('score').textContent=('000'+score).slice(-4);
+        beep(1300,0.06);
+      }else{
+        beep(180,0.4);lives--;updLives();
+        if(lives<=0){
+          running=false;
+          setTimeout(function(){showOv('GAME OVER','Score: '+score+' &nbsp;·&nbsp; Tap to retry');},300);
+          return;
+        }
+      }
+      items.splice(i,1);
+    }else{
+      document.getElementById('c'+it.lane+it.row).classList.add('on');
+      it.row++;
+    }
+  }
+  if(Math.random()>0.72||items.length===0)
+    items.push({lane:Math.floor(Math.random()*3),row:0});
+  if(speed>250)speed-=0.5;
+  tid=setTimeout(loop,speed);
+}
+</script>
+</body>
+</html>
