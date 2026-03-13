@@ -28,7 +28,8 @@ jobs:
           import os
 
           def w(path, content):
-              os.makedirs(os.path.dirname(path), exist_ok=True)
+              d = os.path.dirname(path)
+              if d: os.makedirs(d, exist_ok=True)
               with open(path, 'w') as f:
                   f.write(content)
 
@@ -264,7 +265,8 @@ jobs:
               cx,cy=int(size*0.56),int(size*0.49)
               d.polygon([(cx,cy+int(size*0.22)),(cx+int(size*0.18),cy+int(size*0.04)),(cx+int(size*0.18),cy),(cx,cy)], fill=(210,90,10,255))
               d.ellipse([int(size*0.37),int(size*0.52),int(size*0.43),int(size*0.59)], fill=(210,210,210,255))
-              os.makedirs(os.path.dirname(path), exist_ok=True)
+              d = os.path.dirname(path)
+              if d: os.makedirs(d, exist_ok=True)
               img.save(path,'PNG')
 
           base='app/src/main/res'
